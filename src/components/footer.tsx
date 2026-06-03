@@ -3,9 +3,9 @@ export function Footer() {
     <>
       <a href={`${Homepage}/blob/main/LICENSE`} target="_blank">MIT LICENSE</a>
       <span>
-        <span>NewsNow © 2024 By </span>
-        <a href={Author.url} target="_blank">
-          {Author.name}
+        <span>NewsSpace © 2026 By </span>
+        <a href=https://funsi.com target="_blank">
+         Phi
         </a>
       </span>
     </>
