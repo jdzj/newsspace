@@ -1,15 +1,15 @@
 {
-  "name": "newsnow",
+  "name": "NewsSpace",
   "type": "module",
   "version": "0.0.39",
   "private": true,
   "packageManager": "pnpm@10.30.3",
   "author": {
-    "url": "https://github.com/ourongxing/",
-    "email": "orongxing@gmail.com",
-    "name": "ourongxing"
+    "url": "https://github.com/jdzj/",
+    "email": "goefeig@gmail.com",
+    "name": "Phi"
   },
-  "homepage": "https://github.com/ourongxing/newsnow",
+  "homepage": "https://github.com/jdzj/newsspace",
   "scripts": {
     "dev": "npm run presource && vite dev",
     "build": "npm run presource && vite build",
