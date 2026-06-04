@@ -4,72 +4,91 @@ import { defineSource } from "#/utils/source"
 import { myFetch } from "#/utils/fetch"
 
 /**
- * 网易新闻 - 最新社会新闻
+ * 网易新闻 - 今日关注 / 头条新闻（推荐）
  */
-const news = defineSource(async () => {
+const neteaseNews = defineSource(async () => {
+  const newsItems: NewsItem[] = []
+  const baseURL = "https://news.163.com"
+
   try {
-    const baseURL = "https://news.163.com"
-    
-    // 使用网易新闻RSS源 - 更稳定
-    try {
-      const rssUrl = "https://www.chinanews.com.cn/rss/scroll-news.xml"
-      const html: string = await myFetch(rssUrl)
-      const $ = cheerio.load(html)
-      const newsItems: NewsItem[] = []
+    // 推荐 RSS 源：今日关注 / 头条（最稳定）
+    const rssUrl = "http://news.163.com/special/00011K6L/rss_newstop.xml"
 
-      // 获取最新新闻列表
-      $(".tit a, .txt-box a, .list-text a").each((_, element) => {
-        const $element = $(element)
-        const title = $element.attr("title") || $element.text()
-        const url = $element.attr("href")
+    const xml = await myFetch(rssUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; NewsAggregator/1.0)",
+      },
+    })
 
-        if (title && url && title.trim().length > 2 && !newsItems.some(item => item.url === url)) {
-          const fullUrl = url.includes("http") ? url : `${baseURL}${url}`
+    const $ = cheerio.load(xml, { xmlMode: true })
+
+    $("item").each((_, element) => {
+      const $item = $(element)
+      const title = $item.find("title").text().trim()
+      let link = $item.find("link").text().trim()
+      const pubDate = $item.find("pubDate").text().trim()
+
+      if (title && link) {
+        // 确保链接是完整的
+        if (!link.startsWith("http")) {
+          link = `https://news.163.com${link}`
+        }
+
+        newsItems.push({
+          id: link,
+          title: title.substring(0, 200),
+          url: link,
+          extra: {
+            date: pubDate ? new Date(pubDate).getTime() : undefined,
+          },
+        })
+      }
+    })
+
+    if (newsItems.length > 5) {
+      return newsItems.slice(0, 30)
+    }
+  } catch (rssError) {
+    console.warn("Netease RSS fetch failed, trying fallback...", rssError)
+  }
+
+  // 备用方案：直接抓取网页热榜（手机端更稳定）
+  try {
+    const html = await myFetch("https://m.news.163.com/", {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+      },
+    })
+
+    const $ = cheerio.load(html)
+
+    // 网易移动端常见标题选择器
+    $("a[href*='/news/'], .title, .list-item h3").each((_, el) => {
+      const $el = $(el)
+      const title = $el.text().trim()
+      let url = $el.attr("href") || $el.closest("a").attr("href")
+
+      if (title.length > 10 && url) {
+        if (!url.startsWith("http")) url = "https://news.163.com" + (url.startsWith("/") ? "" : "/") + url
+
+        if (!newsItems.some(item => item.url === url)) {
           newsItems.push({
-            id: fullUrl,
-            title: title.trim().substring(0, 200),
-            url: fullUrl,
+            id: url,
+            title: title.substring(0, 200),
+            url,
           })
         }
-      })
-
-      if (newsItems.length > 5) {
-        return newsItems.slice(0, 30)
       }
-    } catch {
-      // HTML爬取失败，继续尝试其他方案
-    }
-
-    // 备用方案：澎湃新闻热榜（中国最新新闻）
-    try {
-      const apiUrl = "https://api.thepaper.cn/v3/homepageV2?isSql=1&device=pc&web_version=pc&cmsId=26"
-      const response: any = await myFetch(apiUrl)
-      
-      if (response?.data?.items?.length) {
-        return response.data.items
-          .filter((item: any) => item.title && item.contentUrl)
-          .slice(0, 30)
-          .map((item: any) => ({
-            id: item.contentUrl || item.title,
-            title: item.title,
-            url: item.contentUrl || "https://www.thepaper.cn/",
-            extra: {
-              date: item.createTime ? new Date(item.createTime).getTime() : undefined,
-            },
-          }))
-      }
-    } catch {
-      // API备用方案失败
-    }
-
-    return []
-  } catch (error) {
-    console.error("Netease news fetch error:", error)
-    return []
+    })
+  } catch (webError) {
+    console.error("Netease web fallback failed:", webError)
   }
+
+  return newsItems.slice(0, 30)
 })
 
 export default defineSource({
-  "netease": news,
-  "netease-news": news,
+  netease: neteaseNews,
+  "netease-news": neteaseNews,
+  "netease-top": neteaseNews,
 })
