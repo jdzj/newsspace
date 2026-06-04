@@ -459,7 +459,7 @@ export const originSources = {
     color: "red",
     home: "https://www.chinanews.com.cn/society/",
     type: "hottest",
-    title: "最新社会新闻",
+    title: "社会新闻",
   },
   "sports": {
     name: "体育新闻",
