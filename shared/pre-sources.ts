@@ -453,6 +453,30 @@ export const originSources = {
     type: "hottest",
     home: "https://www.freebuf.com/",
   },
+  "netease": {
+    name: "网易新闻",
+    column: "china",
+    color: "red",
+    home: "https://news.163.com",
+    type: "hottest",
+    sub: {
+      news: {
+        title: "综合新闻",
+        type: "hottest",
+        interval: Time.Common,
+      },
+      relaxing: {
+        title: "每日轻松一刻",
+        type: "hottest",
+        interval: Time.Common,
+      },
+      sports: {
+        title: "体育新闻",
+        type: "hottest",
+        interval: Time.Common,
+      },
+    },
+  },
 
   "qqvideo": {
     name: "腾讯视频",
