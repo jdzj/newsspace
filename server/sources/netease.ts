@@ -1,112 +1,106 @@
 import * as cheerio from "cheerio"
 import type { NewsItem } from "@shared/types"
+import { defineSource } from "#/utils/source"
+import { myFetch } from "#/utils/fetch"
 
 /**
  * 网易新闻 - 综合新闻
  */
 const news = defineSource(async () => {
-  const baseURL = "https://news.163.com"
-  const html: string = await myFetch(baseURL)
-  const $ = cheerio.load(html)
-  const news: NewsItem[] = []
+  try {
+    const baseURL = "https://news.163.com"
+    const html: string = await myFetch(baseURL)
+    const $ = cheerio.load(html)
+    const newsItems: NewsItem[] = []
 
-  // 获取首页主要新闻
-  $(".news_box").each((_, element) => {
-    const $element = $(element)
-    const $link = $element.find("a").first()
-    const title = $link.attr("title") || $link.text()
-    const url = $link.attr("href")
-
-    if (title && url) {
-      news.push({
-        id: url,
-        title: title.trim(),
-        url: url.includes("http") ? url : `${baseURL}${url}`,
-      })
-    }
-  })
-
-  // 如果通过选择器没有获取到足够的新闻，尝试备用选择器
-  if (news.length < 10) {
-    $(".news_txt").each((_, element) => {
+    // 获取首页主要新闻 - 尝试多个选择器
+    $("a[href*='news.163.com']").each((_, element) => {
       const $element = $(element)
-      const $link = $element.find("a").first()
-      const title = $link.text()
-      const url = $link.attr("href")
+      const title = $element.attr("title") || $element.text()
+      const url = $element.attr("href")
 
-      if (title && url && !news.some(item => item.url === url)) {
-        news.push({
+      if (title && url && title.trim().length > 0 && !newsItems.some(item => item.url === url)) {
+        newsItems.push({
           id: url,
-          title: title.trim(),
+          title: title.trim().substring(0, 200),
           url: url.includes("http") ? url : `${baseURL}${url}`,
         })
       }
     })
-  }
 
-  return news.slice(0, 30)
+    // 如果没有获取到足够的新闻，尝试API接口
+    if (newsItems.length < 5) {
+      try {
+        const apiResponse: any = await myFetch(
+          "https://c.m.163.com/uc/api/feed",
+          {
+            query: {
+              version: 10,
+              spjson: 1,
+              channel: "news",
+              pagesize: 30,
+              pageno: 1,
+            },
+          }
+        )
+
+        if (apiResponse?.items?.length) {
+          return apiResponse.items
+            .slice(0, 30)
+            .map((item: any) => ({
+              id: item.docurl || item.title,
+              title: item.title,
+              url: item.docurl || "https://news.163.com/",
+              pubDate: item.time,
+              extra: {
+                date: item.time ? new Date(item.time * 1000).getTime() : undefined,
+              },
+            }))
+        }
+      } catch {
+        // API备用方案失败
+      }
+    }
+
+    return newsItems.slice(0, 30)
+  } catch (error) {
+    console.error("Netease news fetch error:", error)
+    return []
+  }
 })
 
 /**
  * 网易新闻 - 每日轻松一刻
  */
 const relaxing = defineSource(async () => {
-  const baseURL = "https://news.163.com"
-  const url = `${baseURL}/special/0038O8EV/news_ent_bbs.html`
-
   try {
-    const html: string = await myFetch(url)
-    const $ = cheerio.load(html)
-    const news: NewsItem[] = []
-
-    // 获取娱乐版块的新闻
-    $(".post_item, .news-box").each((_, element) => {
-      const $element = $(element)
-      const $link = $element.find("a").first()
-      const title = $link.attr("title") || $link.text()
-      const href = $link.attr("href")
-
-      if (title && href) {
-        const fullUrl = href.includes("http") ? href : `${baseURL}${href}`
-        if (!news.some(item => item.url === fullUrl)) {
-          news.push({
-            id: fullUrl,
-            title: title.trim(),
-            url: fullUrl,
-          })
-        }
-      }
+    const apiUrl = "https://c.m.163.com/uc/api/feed"
+    const response: any = await myFetch(apiUrl, {
+      query: {
+        version: 10,
+        spjson: 1,
+        channel: "ent",
+        pagesize: 30,
+        pageno: 1,
+      },
     })
 
-    return news.slice(0, 30)
-  } catch {
-    // 如果专栏页面获取失败，使用备用方案通过API
-    try {
-      const apiUrl = "https://c.m.163.com/uc/api/feed"
-      const response: any = await myFetch(apiUrl, {
-        query: {
-          version: 10,
-          spjson: 1,
-          channel: "ent",
-          pagesize: 30,
-          pageno: 1,
-        },
-      })
-
-      if (response?.items?.length) {
-        return response.items.map((item: any) => ({
+    if (response?.items?.length) {
+      return response.items
+        .slice(0, 30)
+        .map((item: any) => ({
           id: item.docurl || item.title,
           title: item.title,
-          url: item.docurl || `${baseURL}/ent/`,
+          url: item.docurl || "https://news.163.com/ent/",
           extra: {
             date: item.time ? new Date(item.time * 1000).getTime() : undefined,
           },
         }))
-      }
-    } catch {
-      // 再次失败则返回空数组
     }
 
+    return []
+  } catch (error) {
+    console.error("Netease relaxing fetch error:", error)
     return []
   }
 })
@@ -115,40 +109,6 @@ const relaxing = defineSource(async () => {
  * 网易新闻 - 体育新闻
  */
 const sports = defineSource(async () => {
-  const baseURL = "https://sports.163.com"
-
-  try {
-    const html: string = await myFetch(baseURL)
-    const $ = cheerio.load(html)
-    const news: NewsItem[] = []
-
-    // 获取首页体育新闻
-    $(".news_item, .sports_news, .list_item").each((_, element) => {
-      const $element = $(element)
-      const $link = $element.find("a").first()
-      const title = $link.attr("title") || $link.text()
-      const url = $link.attr("href")
-
-      if (title && url) {
-        const fullUrl = url.includes("http") ? url : `${baseURL}${url}`
-        if (!news.some(item => item.url === fullUrl)) {
-          news.push({
-            id: fullUrl,
-            title: title.trim(),
-            url: fullUrl,
-          })
-        }
-      }
-    })
-
-    if (news.length > 0) {
-      return news.slice(0, 30)
-    }
-  } catch {
-    // 如果直接爬取失败，使用备用方案
-  }
-
-  // 备用方案：使用API获取体育新闻
   try {
     const apiUrl = "https://c.m.163.com/uc/api/feed"
     const response: any = await myFetch(apiUrl, {
@@ -162,20 +122,23 @@ const sports = defineSource(async () => {
     })
 
     if (response?.items?.length) {
-      return response.items.map((item: any) => ({
-        id: item.docurl || item.title,
-        title: item.title,
-        url: item.docurl || `${baseURL}/`,
-        extra: {
-          date: item.time ? new Date(item.time * 1000).getTime() : undefined,
-        },
-      }))
+      return response.items
+        .slice(0, 30)
+        .map((item: any) => ({
+          id: item.docurl || item.title,
+          title: item.title,
+          url: item.docurl || "https://sports.163.com/",
+          extra: {
+            date: item.time ? new Date(item.time * 1000).getTime() : undefined,
+          },
+        }))
     }
-  } catch {
-    // API失败
-  }
 
-  return []
+    return []
+  } catch (error) {
+    console.error("Netease sports fetch error:", error)
+    return []
+  }
 })
 
 export default defineSource({
