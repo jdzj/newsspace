@@ -12,7 +12,7 @@ const news = defineSource(async () => {
     
     // 使用网易新闻RSS源 - 更稳定
     try {
-      const rssUrl = "https://news.163.com/rank/newh5/"
+      const rssUrl = "https://www.chinanews.com.cn/rss/scroll-news.xml"
       const html: string = await myFetch(rssUrl)
       const $ = cheerio.load(html)
       const newsItems: NewsItem[] = []
