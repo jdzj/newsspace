@@ -459,23 +459,15 @@ export const originSources = {
     color: "red",
     home: "https://news.163.com",
     type: "hottest",
-    sub: {
-      news: {
-        title: "综合新闻",
-        type: "hottest",
-        interval: Time.Common,
-      },
-      relaxing: {
-        title: "每日轻松一刻",
-        type: "hottest",
-        interval: Time.Common,
-      },
-      sports: {
-        title: "体育新闻",
-        type: "hottest",
-        interval: Time.Common,
-      },
-    },
+    title: "最新社会新闻",
+  },
+  "sports": {
+    name: "体育新闻",
+    column: "world",
+    color: "orange",
+    home: "https://www.hupu.com",
+    type: "hottest",
+    title: "体育热点",
   },
 
   "qqvideo": {
