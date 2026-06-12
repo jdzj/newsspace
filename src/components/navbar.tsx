@@ -35,13 +35,13 @@ export function NavBar() {
         </Link>
       ))}
       <Link
-        to="https://1.618033.com/"
+        to="https://xiaoshuitun.cn/"
         className={$(
           "px-2 hover:(bg-primary/10 rounded-md) cursor-pointer transition-all",
           "op-70 dark:op-90",
         )}
       >
-        导航
+        Ai
       </Link>
     </span>
   )
