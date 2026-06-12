@@ -41,7 +41,7 @@ export function NavBar() {
           "op-70 dark:op-90",
         )}
       >
-        Ai
+        小水豚Ai
       </Link>
     </span>
   )
