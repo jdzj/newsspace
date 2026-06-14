@@ -19,7 +19,7 @@ function GoTop() {
 
 function Github() {
   return (
-    <button type="button" title="Github" className="i-ph:github-logo-duotone btn" onClick={() => alert('要开心每一天哦！')} />
+    <button type="button" title="News" className="i-ph:github-logo-duotone btn" onClick={() => alert('要开心每一天哦！')} />
   )
 }
 
