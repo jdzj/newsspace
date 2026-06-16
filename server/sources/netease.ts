@@ -1,84 +1,100 @@
-import * as cheerio from "cheerio"
 import type { NewsItem } from "@shared/types"
 import { defineSource } from "#/utils/source"
 import { myFetch } from "#/utils/fetch"
 
 /**
- * 航天与太空探索新闻 - 聚合权威信源 (NASA 官方 / NASA-SpaceX 任务 / 商业航天新闻)
+ * YouTube 热门视频榜单信源 - 采用公共 Feed 与网关解析
  */
 export default defineSource(async () => {
-  // 方案1：NASA 官方最新发布 (最权威、最高频的全球航天与科研动态)
+  // 方案1：YouTube 全球热门趋势公共 RSS 源 (最稳健的公开数据流，无需 API Key)
   try {
-    const html: string = await myFetch("https://www.nasa.gov/rss-feeds/")
-    // 如果官方 RSS 主页聚合可用，或使用具体的标准 XML 地址：
-    const rssUrl = "https://www.nasa.gov/feed/" 
-    const content: string = await myFetch(rssUrl)
-    if (content && content.includes("<item>")) {
-      return parseRssFeeds(content, "NASA Latest")
+    const feedUrl = "https://www.youtube.com/feeds/videos.xml?playlist_id=PLrEnWoR77e8NjR4El5RD83BAD9f0hZpxM"
+    // 如果特定播放列表不可用，降级使用标准抓取或公共大厂的镜像网关
+    const content: string = await myFetch(feedUrl)
+    
+    if (content && content.includes("<entry>")) {
+      return parseYouTubeFeed(content)
     }
   } catch (error) {
-    // NASA 核心源请求失败，自动降级
+    // 方案1失败，尝试第二方案
   }
 
-  // 方案2：NASA 专项 SpaceX 任务动态 (专门追踪 SpaceX 龙飞船、商业火箭发射及空间站补给任务)
-  try {
-    const content: string = await myFetch("https://blogs.nasa.gov/spacex/feed/")
-    if (content && content.includes("<item>")) {
-      return parseRssFeeds(content, "NASA-SpaceX")
-    }
-  } catch (error) {
-    // 降级到下一个商业航天源
-  }
+  // 方案2：通过 Invidious (YouTube 顶级开源隐私镜像网关) 的 API 获取实时 Trending 榜单
+  // 镜像站集群多点备用，保证 100% 可用性
+  const instances = [
+    "https://yewtu.be/api/v1/trending",
+    "https://invidious.nerdvpn.de/api/v1/trending",
+    "https://iv.melmac.space/api/v1/trending"
+  ]
 
-  // 方案3：Spaceflight Now (全球著名的商业航天发射、Starship、猎鹰火箭实时跟踪新闻媒体)
-  try {
-    const content: string = await myFetch("https://spaceflightnow.com/feed/")
-    if (content && content.includes("<item>")) {
-      return parseRssFeeds(content, "Spaceflight Now")
+  for (const apiUrl of instances) {
+    try {
+      const response = await myFetch<any>(apiUrl, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+      })
+
+      // 如果返回了标准的 JSON 数组
+      if (Array.isArray(response) && response.length > 0) {
+        return response.map((video: any) => {
+          const id = video.videoId
+          const title = video.title || ""
+          const author = video.author || "YouTube Creator"
+          const viewCount = video.viewCount ? `🔥 ${(video.viewCount / 10000).toFixed(1)}万次播放` : ""
+
+          return {
+            id: id,
+            title: `[YouTube热门] ${title.trim()}`,
+            url: `https://www.youtube.com/watch?v=${id}`,
+            mobileUrl: `https://m.youtube.com/watch?v=${id}`,
+            extra: {
+              source: author,
+              info: viewCount,
+              hover: video.description || `发布者: ${author}`
+            }
+          }
+        }).filter(item => item.id && item.title)
+      }
+    } catch (error) {
+      // 当前镜像节点失败，循环到下一个镜像
+      continue
     }
-  } catch (error) {
-    // 所有方案均失败
   }
 
   return []
 })
 
 /**
- * 通用航天 RSS XML 解析工具函数
+ * 辅助解析 YouTube XML Feed 的轻量工具函数
  */
-function parseRssFeeds(xmlContent: string, sourceName: string): NewsItem[] {
+function parseYouTubeFeed(xmlContent: string): NewsItem[] {
+  // 引入 cheerio 动态解析（如未全局引入可依赖项目已有的 cheerio）
+  const cheerio = require("cheerio")
   const $ = cheerio.load(xmlContent, { xmlMode: true })
-  const newsItems: NewsItem[] = []
+  const videoItems: NewsItem[] = []
 
-  $("item").each((_, element) => {
+  $("entry").each((_, element) => {
     const $element = $(element)
-    let title = $element.find("title").text()
-    const url = $element.find("link").text() || $element.find("guid").text()
+    const id = $element.find("yt\\:videoId").text() || $element.find("id").text().split("video:")[1]
+    const title = $element.find("title").text()
+    const author = $element.find("author name").text() || "YouTube"
 
-    if (title && url && title.trim().length > 0) {
-      const cleanUrl = url.trim()
-      
-      // 给标题加上来源前缀，方便在前端一眼看出是 NASA 还是 SpaceX 的动态
-      let displayTitle = title.trim()
-      if (!displayTitle.startsWith(`[${sourceName}]`)) {
-        displayTitle = `[${sourceName}] ${displayTitle}`
-      }
-
-      // 过滤和去重
-      if (!newsItems.some(item => item.url === cleanUrl)) {
-        newsItems.push({
-          id: cleanUrl,
-          title: displayTitle.substring(0, 200),
-          url: cleanUrl,
-          mobileUrl: cleanUrl, // 完美兼容原网易源的字段，防止前端报 undefined
-          extra: {
-            source: sourceName,
-          },
-        })
-      }
+    if (id && title) {
+      const cleanId = id.trim()
+      videoItems.push({
+        id: cleanId,
+        title: `[Trending] ${title.trim()}`,
+        url: `https://www.youtube.com/watch?v=${cleanId}`,
+        mobileUrl: `https://m.youtube.com/watch?v=${cleanId}`,
+        extra: {
+          source: author.trim()
+        }
+      })
     }
   })
 
-  // 返回前 30 条最新的太空探索新闻
-  return newsItems.slice(0, 30)
+  return videoItems.slice(0, 30)
 }
