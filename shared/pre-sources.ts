@@ -461,13 +461,13 @@ export const originSources = {
     type: "hottest",
     home: "https://www.freebuf.com/",
   },
-  "netease": {
-    name: "中国新闻",
-    column: "china",
+  "youtube": {
+    name: "YouTube",
+    column: "world",
     color: "red",
-    home: "https://www.chinanews.com.cn/society/",
+    home: "https://www.youtube.com/",
     type: "hottest",
-    title: "社会新闻",
+    title: "热门视频",
   },
   "sports": {
     name: "体育新闻",
