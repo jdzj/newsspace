@@ -4,99 +4,77 @@ import { defineSource } from "#/utils/source"
 import { myFetch } from "#/utils/fetch"
 
 /**
- * 体育新闻 - BBC体育和虎扑
+ * 体育新闻 - 聚合国际与国内稳定信源 (BBC / 路透社 / 新浪体育)
  */
 const sports = defineSource(async () => {
+  // 方案1：BBC 体育新闻 (全球最稳定的体育 RSS 之一)
   try {
-    // 方案1：虎扑体育热帖
-    try {
-      const baseURL = "https://www.hupu.com"
-      const html: string = await myFetch(`${baseURL}/nba/`)
-      const $ = cheerio.load(html)
-      const newsItems: NewsItem[] = []
-
-      // 获取虎扑NBA热帖
-      $(".bbs-sl-item, .a-item-box, .item").each((_, element) => {
-        const $element = $(element)
-        const $link = $element.find("a").first()
-        const title = $link.attr("title") || $link.text()
-        const url = $link.attr("href")
-
-        if (title && url && title.trim().length > 0 && !newsItems.some(item => item.url === url)) {
-          const fullUrl = url.includes("http") ? url : `${baseURL}${url}`
-          newsItems.push({
-            id: fullUrl,
-            title: title.trim().substring(0, 200),
-            url: fullUrl,
-          })
-        }
-      })
-
-      if (newsItems.length > 5) {
-        return newsItems.slice(0, 30)
-      }
-    } catch {
-      // 虎扑爬取失败，继续尝试其他方案
+    const html: string = await myFetch("https://feeds.bbci.co.uk/sport/rss.xml")
+    if (html && html.includes("<item>")) {
+      return parseRssFeeds(html, "BBC Sport")
     }
-
-    // 方案2：新浪体育热点新闻
-    try {
-      const apiUrl = "https://api.sina.com.cn/sina_feeds?feednames=sports_top"
-      const response: any = await myFetch(apiUrl)
-      
-      if (response?.result?.sports_top?.length) {
-        return response.result.sports_top
-          .filter((item: any) => item.title && item.url)
-          .slice(0, 30)
-          .map((item: any) => ({
-            id: item.url,
-            title: item.title.substring(0, 200),
-            url: item.url,
-            extra: {
-              date: item.time_str ? new Date(item.time_str).getTime() : undefined,
-            },
-          }))
-      }
-    } catch {
-      // 新浪API失败，继续尝试
-    }
-
-    // 方案3：虎扑NBA热门话题
-    try {
-      const html: string = await myFetch("https://bbs.hupu.com/nba")
-      const $ = cheerio.load(html)
-      const newsItems: NewsItem[] = []
-
-      $(".title a, .t_a a").each((_, element) => {
-        const $element = $(element)
-        const title = $element.text()
-        const url = $element.attr("href")
-
-        if (title && url && title.trim().length > 0 && !newsItems.some(item => item.url === url)) {
-          const fullUrl = url.includes("http") ? url : `https://bbs.hupu.com${url}`
-          newsItems.push({
-            id: fullUrl,
-            title: title.trim().substring(0, 200),
-            url: fullUrl,
-          })
-        }
-      })
-
-      if (newsItems.length > 5) {
-        return newsItems.slice(0, 30)
-      }
-    } catch {
-      // 虎扑论坛爬取失败
-    }
-
-    return []
   } catch (error) {
-    console.error("Sports news fetch error:", error)
-    return []
+    // BBC 失败，继续尝试下一个
   }
+
+  // 方案2：路透社体育新闻 (Reuters Sports)
+  try {
+    const html: string = await myFetch("https://www.reutersagency.com/feed/?best-topics=sports&post_type=best")
+    if (html && html.includes("<item>")) {
+      return parseRssFeeds(html, "Reuters Sports")
+    }
+  } catch (error) {
+    // 路透社失败，继续尝试下一个
+  }
+
+  // 方案3：新浪体育综合热点 (国内备用 RSS，比直接爬网页更稳定)
+  try {
+    const html: string = await myFetch("https://feed.mix.sina.com.cn/blacksilvers/feed/sports/index.xml")
+    if (html && html.includes("<item>")) {
+      return parseRssFeeds(html, "新浪体育")
+    }
+  } catch (error) {
+    // 所有方案均失败
+  }
+
+  return []
 })
+
+/**
+ * 通用 RSS XML 解析工具函数
+ */
+function parseRssFeeds(xmlContent: string, sourceName: string): NewsItem[] {
+  const $ = cheerio.load(xmlContent, { xmlMode: true })
+  const newsItems: NewsItem[] = []
+
+  $("item").each((_, element) => {
+    const $element = $(element)
+    const title = $element.find("title").text()
+    const url = $element.find("link").text() || $element.find("guid").text()
+    const pubDate = $element.find("pubDate").text()
+
+    if (title && url && title.trim().length > 0) {
+      const cleanUrl = url.trim()
+      
+      // 避免重复项
+      if (!newsItems.some(item => item.url === cleanUrl)) {
+        newsItems.push({
+          id: cleanUrl,
+          title: title.trim().substring(0, 200),
+          url: cleanUrl,
+          extra: {
+            source: sourceName,
+            date: pubDate ? new Date(pubDate).getTime() : undefined,
+          },
+        })
+      }
+    }
+  })
+
+  return newsItems.slice(0, 30)
+}
 
 export default defineSource({
   "sports": sports,
-  "sports-hupu": sports,
+  "sports-hupu": sports, // 保持别名兼容性
 })
