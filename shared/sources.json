@@ -525,12 +525,12 @@
     "interval": 1800000,
     "title": "综合早报"
   },
-  "freebuf": {
-    "title": "网络安全",
-    "name": "Freebuf",
+  "smzdm": {
+    "title": "什么值得买",
+    "name": "smzdm",
     "type": "hottest",
     "column": "china",
-    "home": "https://www.freebuf.com/",
+    "home": "https://www.smzdm.com/",
     "color": "green",
     "interval": 600000
   },
