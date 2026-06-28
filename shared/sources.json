@@ -108,6 +108,7 @@
     "redirect": "36kr-quick",
     "name": "36氪",
     "type": "realtime",
+    "disable": "cf",
     "column": "tech",
     "home": "https://36kr.com",
     "color": "blue",
@@ -117,6 +118,7 @@
   "36kr-quick": {
     "name": "36氪",
     "type": "realtime",
+    "disable": "cf",
     "column": "tech",
     "home": "https://36kr.com",
     "color": "blue",
@@ -126,6 +128,7 @@
   "36kr": {
     "name": "36氪",
     "type": "hottest",
+    "disable": "cf",
     "column": "tech",
     "home": "https://36kr.com",
     "color": "blue",
@@ -144,9 +147,18 @@
     "title": "主干道热帖",
     "name": "虎扑",
     "type": "hottest",
-    "column": "china",
+    "column": "sports",
     "home": "https://hupu.com",
     "color": "red",
+    "interval": 600000
+  },
+  "dongqiudi": {
+    "title": "头条",
+    "name": "懂球帝",
+    "type": "realtime",
+    "column": "sports",
+    "home": "https://www.dongqiudi.com",
+    "color": "green",
     "interval": 600000
   },
   "aihot": {
