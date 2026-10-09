@@ -54,13 +54,13 @@ export function Header() {
           <span className="text-2xl font-brand line-height-none!">
             <p>News</p>
             <p className="mt--1">
-              <span className="color-primary-6">N</span>
-              <span>ow</span>
+              <span className="color-primary-6">S</span>
+              <span>pace</span>
             </p>
           </span>
         </Link>
         <a target="_blank" href={`${Homepage}/releases/tag/v${Version}`} className="btn text-sm ml-1 font-mono">
-          {`v${Version}`}
+          .cn
         </a>
       </span>
       <span className="justify-self-center">
